@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>工作台</h1>
+<p>角色：{{ role|default:"无" }}</p>
+
+<h2>可见成员</h2>
+{% if members %}
+<ul>
+    {% for member in members %}
+    <li>{{ member.username }}{% if not member.is_active %} (已停用){% endif %}</li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>暂无可见成员。</p>
+{% endif %}
+{% endblock %}
