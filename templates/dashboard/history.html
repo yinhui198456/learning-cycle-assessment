@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>历史周期</h1>
+<ul>
+  {% for cycle in cycles %}
+  <li>{{ cycle.name }} — {{ cycle.get_status_display }}</li>
+  {% empty %}
+  <li>暂无归档周期。</li>
+  {% endfor %}
+</ul>
+{% endblock %}

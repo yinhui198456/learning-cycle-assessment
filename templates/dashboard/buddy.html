@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Buddy 工作台</h1>
+
+<h2>待审批计划</h2>
+<ul>
+  {% for plan in pending_plans %}
+  <li>{{ plan.member.username }} — {{ plan.cycle.name }}</li>
+  {% empty %}
+  <li>暂无待审批计划。</li>
+  {% endfor %}
+</ul>
+
+<h2>待验收成果</h2>
+<ul>
+  {% for item in pending_reviews %}
+  <li>{{ item.plan.member.username }} — {{ item.capability_name }}</li>
+  {% empty %}
+  <li>暂无待验收成果。</li>
+  {% endfor %}
+</ul>
+
+<h2>退回后待补充</h2>
+<ul>
+  {% for item in changes_requested %}
+  <li>{{ item.plan.member.username }} — {{ item.capability_name }}</li>
+  {% empty %}
+  <li>暂无待补充项。</li>
+  {% endfor %}
+</ul>
+{% endblock %}
