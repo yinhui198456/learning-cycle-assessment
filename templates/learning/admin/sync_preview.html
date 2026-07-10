@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>同步影响预览：{{ item.code }} {{ item.name }}</h1>
+
+<form method="post" action="{% url 'learning:admin-sync-apply' item.pk %}">
+  {% csrf_token %}
+  {% for field in fields %}
+  <label><input type="checkbox" name="fields" value="{{ field }}" checked>{{ field }}</label>
+  {% endfor %}
+
+  <table>
+    <thead>
+      <tr>
+        <th>选择</th>
+        <th>成员</th>
+        <th>周期</th>
+        <th>变更</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in preview %}
+      <tr>
+        <td><input type="checkbox" name="plan_item_ids" value="{{ row.plan_item.pk }}" checked></td>
+        <td>{{ row.plan_item.plan.member.username }}</td>
+        <td>{{ row.plan_item.plan.cycle.name }}</td>
+        <td>
+          {% for field, values in row.changes.items %}
+          <div>{{ field }}：{{ values.0 }} → {{ values.1 }}</div>
+          {% endfor %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">没有需要同步的未完成计划项。</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <button type="submit">同步选中项</button>
+</form>
+{% endblock %}

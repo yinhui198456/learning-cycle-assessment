@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>能力与材料维护</h1>
+
+<h2>能力项</h2>
+<table>
+  <thead>
+    <tr>
+      <th>编码</th>
+      <th>名称</th>
+      <th>建议职级</th>
+      <th>状态</th>
+      <th>同步</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td>{{ item.code }}</td>
+      <td>
+        <form method="post" action="{% url 'learning:admin-capability-update' item.pk %}">
+          {% csrf_token %}
+          <input name="name" value="{{ item.name }}">
+          <input name="suggested_level" value="{{ item.suggested_level }}">
+          <input name="acceptance_method" value="{{ item.acceptance_method }}">
+          <input name="estimated_hours" value="{{ item.estimated_hours }}">
+          <input name="recommended_action" value="{{ item.recommended_action }}">
+          <label><input type="checkbox" name="is_active" {% if item.is_active %}checked{% endif %}>启用</label>
+          <button type="submit">保存</button>
+        </form>
+      </td>
+      <td>{{ item.suggested_level }}</td>
+      <td>{% if item.is_active %}启用{% else %}停用{% endif %}</td>
+      <td><a href="{% url 'learning:admin-sync-preview' item.pk %}">影响预览</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>学习材料</h2>
+<table>
+  <tbody>
+    {% for material in materials %}
+    <tr>
+      <td>{{ material.code }}</td>
+      <td>
+        <form method="post" action="{% url 'learning:admin-material-update' material.pk %}">
+          {% csrf_token %}
+          <input name="name" value="{{ material.name }}">
+          <input name="material_type" value="{{ material.material_type }}">
+          <input name="source" value="{{ material.source }}">
+          <input name="description" value="{{ material.description }}">
+          <input name="status" value="{{ material.status }}">
+          <label><input type="checkbox" name="is_active" {% if material.is_active %}checked{% endif %}>启用</label>
+          <button type="submit">保存</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

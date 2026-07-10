@@ -74,3 +74,34 @@ def assign_buddy(member, buddy):
         raise ValueError("Member already has an active Buddy relationship.")
 
     return mentorship
+
+
+def set_user_active(user, is_active):
+    user.is_active = bool(is_active)
+    user.save(update_fields=["is_active"])
+    return user
+
+
+def reassign_buddy(member, new_buddy):
+    if not Mentorship.objects.filter(member=member, ended_at__isnull=True).exists():
+        return assign_buddy(member, new_buddy)
+
+    with transaction.atomic():
+        current = Mentorship.objects.select_for_update().get(
+            member=member,
+            ended_at__isnull=True,
+        )
+        if current.buddy_id == new_buddy.pk:
+            return current
+        current.ended_at = timezone.localdate()
+        current.save(update_fields=["ended_at"])
+        new_relationship = assign_buddy(member, new_buddy)
+
+        from apps.learning.models import LearningCycle, LearningPlan
+
+        LearningPlan.objects.filter(
+            member=member,
+            cycle__status=LearningCycle.Status.ACTIVE,
+        ).exclude(status=LearningPlan.Status.ACTIVE).update(buddy=new_buddy)
+
+    return new_relationship

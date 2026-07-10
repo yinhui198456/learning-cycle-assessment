@@ -5,6 +5,27 @@ from . import views
 app_name = "learning"
 
 urlpatterns = [
+    path("admin/capabilities/", views.admin_capabilities_view, name="admin-capabilities"),
+    path(
+        "admin/capabilities/<int:item_id>/update/",
+        views.admin_capability_update_view,
+        name="admin-capability-update",
+    ),
+    path(
+        "admin/materials/<int:material_id>/update/",
+        views.admin_material_update_view,
+        name="admin-material-update",
+    ),
+    path(
+        "admin/capabilities/<int:item_id>/sync/",
+        views.admin_sync_preview_view,
+        name="admin-sync-preview",
+    ),
+    path(
+        "admin/capabilities/<int:item_id>/sync/apply/",
+        views.admin_sync_apply_view,
+        name="admin-sync-apply",
+    ),
     path("cycles/", views.cycle_admin_view, name="cycle_admin"),
     path("assessment/", views.assessment_view, name="assessment"),
     path(
