@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>个人工作台</h1>
+{% if plan %}
+<p>当前周期：{{ plan.cycle.name }}；计划状态：{{ plan.get_status_display }}</p>
+<h2>下一步</h2>
+<ul>
+  {% for item in next_items %}
+  <li>{{ item.capability_name }} — {{ item.get_execution_status_display }} — {{ item.planned_month|date:"Y-m" }}</li>
+  {% empty %}
+  <li>暂无待办。</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>暂无当前周期计划。</p>
+{% endif %}
+
+<h2>最近进展</h2>
+<ul>
+  {% for progress in recent_progress %}
+  <li>{{ progress.created_at|date:"Y-m-d" }} {{ progress.content }}</li>
+  {% empty %}
+  <li>暂无进展。</li>
+  {% endfor %}
+</ul>
+{% endblock %}

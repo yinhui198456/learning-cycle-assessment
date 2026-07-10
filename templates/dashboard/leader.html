@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Leader 工作台</h1>
+
+<section>
+  <h2>指标</h2>
+  <ul>
+    <li>参与人数：{{ metrics.participants }}</li>
+    <li>完成率：{{ metrics.completion_rate }}%</li>
+    <li>已完成项：{{ metrics.completed_items }} / {{ metrics.total_items }}</li>
+    <li>延期项：{{ metrics.overdue_items }}</li>
+    <li>待审批：{{ metrics.pending_plans }}</li>
+    <li>待验收：{{ metrics.pending_reviews }}</li>
+  </ul>
+</section>
+
+<section>
+  <h2>已完成下钻</h2>
+  <ul>
+    {% for item in completed_items %}
+    <li>{{ item.plan.member.username }} — {{ item.capability_name }}</li>
+    {% empty %}
+    <li>暂无已完成项。</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section>
+  <h2>风险</h2>
+  <p>延期：{{ overdue_items.count }}；长期无进展：{{ stale_items.count }}；反复退回：{{ repeated_changes_items.count }}</p>
+</section>
+{% endblock %}
