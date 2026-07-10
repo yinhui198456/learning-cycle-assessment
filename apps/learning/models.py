@@ -519,6 +519,27 @@ class PlanItem(models.Model):
         )
 
 
+class CatalogSyncLog(models.Model):
+    capability_item = models.ForeignKey(
+        CapabilityItem,
+        on_delete=models.PROTECT,
+        related_name="sync_logs",
+    )
+    plan_item = models.ForeignKey(
+        PlanItem,
+        on_delete=models.CASCADE,
+        related_name="catalog_sync_logs",
+    )
+    field_names = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+    def __str__(self):
+        return f"{self.capability_item.code} -> {self.plan_item_id}"
+
+
 class PlanApprovalEvent(models.Model):
     class Action(models.TextChoices):
         SUBMITTED = "submitted", "已提交"

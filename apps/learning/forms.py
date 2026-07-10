@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
-from .models import LearningCycle, _add_months
+from .models import CapabilityItem, LearningCycle, LearningMaterial, _add_months
 
 User = get_user_model()
 
@@ -85,3 +85,29 @@ class LearningCycleForm(forms.Form):
             members=members,
             created_by=created_by,
         )
+
+
+class CapabilityItemAdminForm(forms.ModelForm):
+    class Meta:
+        model = CapabilityItem
+        fields = [
+            "name",
+            "suggested_level",
+            "acceptance_method",
+            "estimated_hours",
+            "recommended_action",
+            "is_active",
+        ]
+
+
+class LearningMaterialAdminForm(forms.ModelForm):
+    class Meta:
+        model = LearningMaterial
+        fields = [
+            "name",
+            "material_type",
+            "source",
+            "description",
+            "status",
+            "is_active",
+        ]

@@ -12,17 +12,24 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.services import has_role, primary_role
 
-from .forms import LearningCycleForm
+from .forms import (
+    CapabilityItemAdminForm,
+    LearningCycleForm,
+    LearningMaterialAdminForm,
+)
 from .models import (
     Assessment,
     CapabilityCategory,
     EvidenceAttachment,
     EvidenceSubmission,
+    CapabilityItem,
+    LearningMaterial,
     LearningCycle,
     LearningPlan,
     PlanItem,
     ReviewDecision,
 )
+from .services_sync import DEFAULT_SYNC_FIELDS, preview_capability_sync, sync_capability
 from .services import (
     assessment_counts,
     ensure_assessments_for_cycle,
@@ -92,6 +99,71 @@ class CycleAdminView(LeaderRequiredMixin, View):
 
 
 cycle_admin_view = CycleAdminView.as_view()
+
+
+class CapabilityAdminView(LeaderRequiredMixin, View):
+    template_name = "learning/admin/capability_tree.html"
+
+    def get(self, request):
+        items = CapabilityItem.objects.select_related("domain__parent", "domain__category")
+        materials = LearningMaterial.objects.order_by("code")
+        return render(
+            request,
+            self.template_name,
+            {"items": items, "materials": materials},
+        )
+
+
+admin_capabilities_view = CapabilityAdminView.as_view()
+
+
+@login_required
+@require_POST
+def admin_capability_update_view(request, item_id):
+    if not has_role(request.user, "leader"):
+        raise PermissionDenied()
+    item = get_object_or_404(CapabilityItem, pk=item_id)
+    form = CapabilityItemAdminForm(request.POST, instance=item)
+    if form.is_valid():
+        form.save()
+    return redirect("learning:admin-capabilities")
+
+
+@login_required
+@require_POST
+def admin_material_update_view(request, material_id):
+    if not has_role(request.user, "leader"):
+        raise PermissionDenied()
+    material = get_object_or_404(LearningMaterial, pk=material_id)
+    form = LearningMaterialAdminForm(request.POST, instance=material)
+    if form.is_valid():
+        form.save()
+    return redirect("learning:admin-capabilities")
+
+
+@login_required
+def admin_sync_preview_view(request, item_id):
+    if not has_role(request.user, "leader"):
+        raise PermissionDenied()
+    item = get_object_or_404(CapabilityItem, pk=item_id)
+    preview = preview_capability_sync(item, DEFAULT_SYNC_FIELDS)
+    return render(
+        request,
+        "learning/admin/sync_preview.html",
+        {"item": item, "preview": preview, "fields": DEFAULT_SYNC_FIELDS},
+    )
+
+
+@login_required
+@require_POST
+def admin_sync_apply_view(request, item_id):
+    if not has_role(request.user, "leader"):
+        raise PermissionDenied()
+    item = get_object_or_404(CapabilityItem, pk=item_id)
+    ids = request.POST.getlist("plan_item_ids")
+    fields = request.POST.getlist("fields") or list(DEFAULT_SYNC_FIELDS)
+    sync_capability(item, ids, fields)
+    return redirect("learning:admin-sync-preview", item_id=item.pk)
 
 
 def _parse_json_body(request):

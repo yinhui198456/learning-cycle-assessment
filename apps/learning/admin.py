@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import (
     Assessment,
+    CatalogSyncLog,
     CapabilityCategory,
     CapabilityDomain,
     CapabilityItem,
@@ -106,6 +107,13 @@ class PlanItemAdmin(admin.ModelAdmin):
     ]
     list_filter = ["plan__cycle", "priority", "execution_status"]
     ordering = ["plan", "sort_order", "capability_code"]
+
+
+@admin.register(CatalogSyncLog)
+class CatalogSyncLogAdmin(admin.ModelAdmin):
+    list_display = ["capability_item", "plan_item", "field_names", "created_at"]
+    list_filter = ["capability_item"]
+    ordering = ["-created_at"]
 
 
 @admin.register(PlanApprovalEvent)

@@ -3,12 +3,19 @@
 {% block content %}
 <h1>账号与角色管理</h1>
 
+<p>
+    <a href="{% url 'learning:admin-capabilities' %}">能力与材料维护</a>
+    ·
+    <a href="{% url 'learning:cycle_admin' %}">学习周期管理</a>
+</p>
+
 <table>
     <thead>
         <tr>
             <th>用户名</th>
             <th>邮箱</th>
             <th>状态</th>
+            <th>操作</th>
         </tr>
     </thead>
     <tbody>
@@ -17,6 +24,27 @@
             <td>{{ user.username }}</td>
             <td>{{ user.email|default:"-" }}</td>
             <td>{% if user.is_active %}启用{% else %}停用{% endif %}</td>
+            <td>
+                <form method="post" action="{% url 'user_active' user.pk %}">
+                    {% csrf_token %}
+                    <label>
+                        <input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}>
+                        启用
+                    </label>
+                    <button type="submit">保存状态</button>
+                </form>
+                {% if user.groups.all %}
+                <form method="post" action="{% url 'user_buddy' user.pk %}">
+                    {% csrf_token %}
+                    <select name="buddy">
+                        {% for buddy in buddies %}
+                        <option value="{{ buddy.pk }}">{{ buddy.username }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">绑定 Buddy</button>
+                </form>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
