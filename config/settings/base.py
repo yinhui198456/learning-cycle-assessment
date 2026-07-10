@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.learning",
     "apps.dashboard",
+    "apps.reports",
 ]
 
 MIDDLEWARE = [

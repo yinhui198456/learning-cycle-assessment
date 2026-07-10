@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from apps.accounts.models import Mentorship
+from apps.accounts.models import EmailLog, Mentorship
 from apps.accounts.services import has_role
 
 from .models import (
@@ -132,11 +132,21 @@ def review_evidence(submission, actor, decision, comment):
     )
     if decision == ReviewDecision.Decision.COMPLETED:
         plan_item.execution_status = PlanItem.ExecutionStatus.COMPLETED
+        trigger = "evidence_completed"
+        subject = "学习成果验收通过"
     elif decision == ReviewDecision.Decision.CHANGES_REQUESTED:
         plan_item.execution_status = PlanItem.ExecutionStatus.CHANGES_REQUESTED
+        trigger = "evidence_changes_requested"
+        subject = "学习成果需补充"
     else:
         raise ValueError("Invalid review decision.")
     plan_item.save(update_fields=["execution_status", "updated_at"])
+    EmailLog.objects.create_pending(
+        recipient=plan_item.plan.member,
+        trigger=trigger,
+        subject=subject,
+        body=comment.strip(),
+    )
     return submission
 
 

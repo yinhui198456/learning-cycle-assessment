@@ -3,7 +3,7 @@ from datetime import date
 from django.db import transaction
 from django.utils import timezone
 
-from apps.accounts.models import Mentorship
+from apps.accounts.models import EmailLog, Mentorship
 
 from .models import Assessment, LearningCycle, LearningPlan, PlanApprovalEvent, PlanItem
 
@@ -109,6 +109,12 @@ def submit_plan(plan, actor):
         actor=actor,
         action=PlanApprovalEvent.Action.SUBMITTED,
     )
+    EmailLog.objects.create_pending(
+        recipient=plan.buddy,
+        trigger="plan_submitted",
+        subject="学习计划待审批",
+        body=f"{plan.member.username} 已提交 {plan.cycle.name}，请审批。",
+    )
     return plan
 
 
@@ -138,6 +144,12 @@ def request_changes(plan, actor, comment):
         action=PlanApprovalEvent.Action.CHANGES_REQUESTED,
         comment=comment.strip(),
     )
+    EmailLog.objects.create_pending(
+        recipient=plan.member,
+        trigger="plan_changes_requested",
+        subject="学习计划已退回",
+        body=comment.strip(),
+    )
     return plan
 
 
@@ -153,6 +165,12 @@ def approve_plan(plan, actor):
         plan=plan,
         actor=actor,
         action=PlanApprovalEvent.Action.APPROVED,
+    )
+    EmailLog.objects.create_pending(
+        recipient=plan.member,
+        trigger="plan_approved",
+        subject="学习计划已审批通过",
+        body=f"{plan.cycle.name} 已进入执行。",
     )
     return plan
 
