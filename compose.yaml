@@ -33,7 +33,7 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "80:80"
+      - "8080:80"
     volumes:
       - staticfiles:/app/staticfiles:ro
       - media:/app/media:ro
