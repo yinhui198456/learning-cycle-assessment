@@ -1,10 +1,13 @@
 from django.contrib import admin
 
 from .models import (
+    Assessment,
     CapabilityCategory,
     CapabilityDomain,
     CapabilityItem,
     CapabilityMaterial,
+    CycleParticipant,
+    LearningCycle,
     LearningMaterial,
 )
 
@@ -39,3 +42,38 @@ class CapabilityItemAdmin(admin.ModelAdmin):
 class CapabilityMaterialAdmin(admin.ModelAdmin):
     list_display = ["item", "material", "sort_order"]
     ordering = ["sort_order"]
+
+
+@admin.register(CycleParticipant)
+class CycleParticipantAdmin(admin.ModelAdmin):
+    list_display = ["cycle", "member", "created_at"]
+    list_filter = ["cycle"]
+
+
+@admin.register(Assessment)
+class AssessmentAdmin(admin.ModelAdmin):
+    list_display = [
+        "member",
+        "cycle",
+        "capability_item",
+        "current_level",
+        "target_level",
+        "gap",
+        "included",
+        "version",
+    ]
+    list_filter = ["cycle", "included", "priority"]
+
+
+@admin.register(LearningCycle)
+class LearningCycleAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "cycle_type",
+        "start_date",
+        "end_date",
+        "status",
+        "created_by",
+    ]
+    list_filter = ["cycle_type", "status"]
+    ordering = ["-start_date"]

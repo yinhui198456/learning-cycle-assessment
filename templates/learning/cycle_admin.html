@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>学习周期管理</h1>
+
+<section aria-labelledby="create-cycle-heading">
+  <h2 id="create-cycle-heading">创建学习周期</h2>
+  <form method="post" action="{% url 'learning:cycle_admin' %}">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">创建周期</button>
+  </form>
+</section>
+
+<section aria-labelledby="cycle-list-heading">
+  <h2 id="cycle-list-heading">现有周期</h2>
+  {% if cycles %}
+  <table>
+    <thead>
+      <tr>
+        <th>名称</th>
+        <th>类型</th>
+        <th>开始日期</th>
+        <th>结束日期</th>
+        <th>状态</th>
+        <th>参与人数</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cycle in cycles %}
+      <tr>
+        <td>{{ cycle.name }}</td>
+        <td>{{ cycle.get_cycle_type_display }}</td>
+        <td>{{ cycle.start_date }}</td>
+        <td>{{ cycle.end_date }}</td>
+        <td>{{ cycle.get_status_display }}</td>
+        <td>{{ cycle.participants.count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>暂无学习周期。</p>
+  {% endif %}
+</section>
+{% endblock %}

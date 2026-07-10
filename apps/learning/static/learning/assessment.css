@@ -1,0 +1,79 @@
+.assessment-table-wrap {
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.assessment-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.assessment-table th,
+.assessment-table td {
+  border: 1px solid #ccc;
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+}
+
+.sticky-col {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 1;
+}
+
+.capability-row.saving {
+  background-color: #fffbe6;
+}
+
+.capability-row.saved {
+  background-color: #f6ffed;
+}
+
+.capability-row.failed {
+  background-color: #fff1f0;
+}
+
+.capability-row.conflict {
+  background-color: #fff2e8;
+}
+
+.row-status[data-status="idle"] .status-text,
+.row-status[data-status="saved"] .status-text {
+  color: #237804;
+}
+
+.row-status[data-status="failed"] .status-text,
+.row-status[data-status="conflict"] .status-text {
+  color: #a8071a;
+}
+
+.assessment-table :focus-visible,
+.batch-bar :focus-visible,
+.filters :focus-visible {
+  outline: 2px solid #096dd9;
+  outline-offset: 2px;
+}
+
+.batch-bar,
+.filters {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+}
+
+.nested-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.nested-table td,
+.nested-table th {
+  border: none;
+}
