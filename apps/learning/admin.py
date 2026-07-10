@@ -9,6 +9,9 @@ from .models import (
     CycleParticipant,
     LearningCycle,
     LearningMaterial,
+    LearningPlan,
+    PlanApprovalEvent,
+    PlanItem,
 )
 
 
@@ -77,3 +80,24 @@ class LearningCycleAdmin(admin.ModelAdmin):
     ]
     list_filter = ["cycle_type", "status"]
     ordering = ["-start_date"]
+
+
+@admin.register(LearningPlan)
+class LearningPlanAdmin(admin.ModelAdmin):
+    list_display = ["member", "cycle", "buddy", "status", "submitted_at", "approved_at"]
+    list_filter = ["status", "cycle"]
+    ordering = ["-updated_at"]
+
+
+@admin.register(PlanItem)
+class PlanItemAdmin(admin.ModelAdmin):
+    list_display = ["plan", "capability_code", "capability_name", "priority", "planned_month"]
+    list_filter = ["plan__cycle", "priority"]
+    ordering = ["plan", "sort_order", "capability_code"]
+
+
+@admin.register(PlanApprovalEvent)
+class PlanApprovalEventAdmin(admin.ModelAdmin):
+    list_display = ["plan", "actor", "action", "created_at"]
+    list_filter = ["action"]
+    ordering = ["-created_at"]

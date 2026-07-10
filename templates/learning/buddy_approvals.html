@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section aria-labelledby="approval-heading">
+  <h1 id="approval-heading">Buddy 审批</h1>
+
+  {% for plan in plans %}
+  <article>
+    <h2>{{ plan.member.username }} — {{ plan.cycle.name }}</h2>
+    <form method="post" action="{% url 'learning:plan-approve' plan.pk %}">
+      {% csrf_token %}
+      <button type="submit">通过</button>
+    </form>
+    <form method="post" action="{% url 'learning:plan-request-changes' plan.pk %}">
+      {% csrf_token %}
+      <label>退回意见 <textarea name="comment" required></textarea></label>
+      <button type="submit">退回修改</button>
+    </form>
+  </article>
+  {% empty %}
+  <p>暂无待审批计划。</p>
+  {% endfor %}
+</section>
+{% endblock %}
