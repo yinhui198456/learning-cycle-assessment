@@ -38,7 +38,7 @@ if parsed.scheme in ("postgres", "postgresql"):
 else:
     raise ImproperlyConfigured("DATABASE_URL must use a postgresql scheme")
 
-SECURE_SSL_REDIRECT = True
+SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "true").lower() in ("true", "1", "yes", "on")
 SECURE_HSTS_SECONDS = 60
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
