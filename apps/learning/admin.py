@@ -7,11 +7,16 @@ from .models import (
     CapabilityItem,
     CapabilityMaterial,
     CycleParticipant,
+    EvidenceAttachment,
+    EvidenceSubmission,
+    GuidanceComment,
     LearningCycle,
     LearningMaterial,
     LearningPlan,
     PlanApprovalEvent,
     PlanItem,
+    ProgressUpdate,
+    ReviewDecision,
 )
 
 
@@ -91,8 +96,15 @@ class LearningPlanAdmin(admin.ModelAdmin):
 
 @admin.register(PlanItem)
 class PlanItemAdmin(admin.ModelAdmin):
-    list_display = ["plan", "capability_code", "capability_name", "priority", "planned_month"]
-    list_filter = ["plan__cycle", "priority"]
+    list_display = [
+        "plan",
+        "capability_code",
+        "capability_name",
+        "priority",
+        "planned_month",
+        "execution_status",
+    ]
+    list_filter = ["plan__cycle", "priority", "execution_status"]
     ordering = ["plan", "sort_order", "capability_code"]
 
 
@@ -100,4 +112,34 @@ class PlanItemAdmin(admin.ModelAdmin):
 class PlanApprovalEventAdmin(admin.ModelAdmin):
     list_display = ["plan", "actor", "action", "created_at"]
     list_filter = ["action"]
+    ordering = ["-created_at"]
+
+
+@admin.register(ProgressUpdate)
+class ProgressUpdateAdmin(admin.ModelAdmin):
+    list_display = ["plan_item", "author", "hours_spent", "created_at"]
+    ordering = ["-created_at"]
+
+
+@admin.register(GuidanceComment)
+class GuidanceCommentAdmin(admin.ModelAdmin):
+    list_display = ["plan_item", "author", "created_at"]
+    ordering = ["-created_at"]
+
+
+@admin.register(EvidenceSubmission)
+class EvidenceSubmissionAdmin(admin.ModelAdmin):
+    list_display = ["plan_item", "submitted_by", "batch_no", "created_at"]
+    ordering = ["-created_at"]
+
+
+@admin.register(EvidenceAttachment)
+class EvidenceAttachmentAdmin(admin.ModelAdmin):
+    list_display = ["submission", "original_name", "content_type", "size_bytes"]
+
+
+@admin.register(ReviewDecision)
+class ReviewDecisionAdmin(admin.ModelAdmin):
+    list_display = ["submission", "reviewer", "decision", "created_at"]
+    list_filter = ["decision"]
     ordering = ["-created_at"]
