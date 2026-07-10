@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section aria-labelledby="execution-heading">
+  <h1 id="execution-heading">执行跟踪：{{ item.capability_name }}</h1>
+  <p>状态：{{ item.get_execution_status_display }}；实际耗时：{{ item.actual_hours }}</p>
+
+  <h2>进展</h2>
+  <ol>
+    {% for progress in item.progress_updates.all %}
+    <li>{{ progress.created_at }} {{ progress.author.username }}：{{ progress.content }}（{{ progress.hours_spent }}h）</li>
+    {% empty %}
+    <li>暂无进展。</li>
+    {% endfor %}
+  </ol>
+
+  <h2>Buddy 评论</h2>
+  <ol>
+    {% for comment in item.guidance_comments.all %}
+    <li>{{ comment.created_at }} {{ comment.author.username }}：{{ comment.content }}</li>
+    {% empty %}
+    <li>暂无评论。</li>
+    {% endfor %}
+  </ol>
+
+  <h2>成果提交</h2>
+  <ol>
+    {% for submission in item.evidence_submissions.all %}
+    <li>
+      第 {{ submission.batch_no }} 次：{{ submission.note }}
+      {% if submission.link %}<a href="{{ submission.link }}">链接</a>{% endif %}
+      <ul>
+        {% for attachment in submission.attachments.all %}
+        <li><a href="{% url 'learning:evidence-download' attachment.pk %}">{{ attachment.original_name }}</a></li>
+        {% endfor %}
+      </ul>
+    </li>
+    {% empty %}
+    <li>暂无成果。</li>
+    {% endfor %}
+  </ol>
+</section>
+{% endblock %}

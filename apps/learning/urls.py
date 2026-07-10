@@ -32,4 +32,34 @@ urlpatterns = [
         views.plan_request_changes_view,
         name="plan-request-changes",
     ),
+    path(
+        "plan-items/<int:item_id>/execution/",
+        views.execution_detail_view,
+        name="execution-detail",
+    ),
+    path(
+        "plan-items/<int:item_id>/progress/",
+        views.progress_add_view,
+        name="progress-add",
+    ),
+    path(
+        "plan-items/<int:item_id>/guidance/",
+        views.guidance_add_view,
+        name="guidance-add",
+    ),
+    path(
+        "plan-items/<int:item_id>/evidence/",
+        views.evidence_submit_view,
+        name="evidence-submit",
+    ),
+    path(
+        "evidence/<int:submission_id>/review/",
+        views.evidence_review_view,
+        name="evidence-review",
+    ),
+    path(
+        "attachments/<int:attachment_id>/download/",
+        views.evidence_download_view,
+        name="evidence-download",
+    ),
 ]

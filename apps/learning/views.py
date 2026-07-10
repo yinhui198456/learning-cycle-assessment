@@ -1,10 +1,11 @@
 import json
+from decimal import Decimal, InvalidOperation
 from http import HTTPStatus
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
-from django.http import Http404, JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.decorators.http import require_POST
@@ -12,7 +13,16 @@ from django.views.decorators.http import require_POST
 from apps.accounts.services import has_role, primary_role
 
 from .forms import LearningCycleForm
-from .models import Assessment, CapabilityCategory, LearningCycle, LearningPlan, PlanItem
+from .models import (
+    Assessment,
+    CapabilityCategory,
+    EvidenceAttachment,
+    EvidenceSubmission,
+    LearningCycle,
+    LearningPlan,
+    PlanItem,
+    ReviewDecision,
+)
 from .services import (
     assessment_counts,
     ensure_assessments_for_cycle,
@@ -26,6 +36,13 @@ from .services_planning import (
     generate_plan,
     request_changes,
     submit_plan,
+)
+from .services_execution import (
+    add_guidance_comment,
+    add_progress_update,
+    can_download_attachment,
+    review_evidence,
+    submit_evidence,
 )
 
 
@@ -369,3 +386,120 @@ def plan_request_changes_view(request, plan_id):
         status = 400 if "comment" in str(exc).lower() else 409
         return JsonResponse({"error": str(exc)}, status=status)
     return redirect("learning:buddy-approvals")
+
+
+@login_required
+def execution_detail_view(request, item_id):
+    _require_member(request.user)
+    item = get_object_or_404(
+        PlanItem.objects.select_related("plan").prefetch_related(
+            "progress_updates",
+            "guidance_comments",
+            "evidence_submissions__attachments",
+            "evidence_submissions__review_decisions",
+        ),
+        pk=item_id,
+        plan__member=request.user,
+    )
+    return render(request, "learning/execution_detail.html", {"item": item})
+
+
+@login_required
+@require_POST
+def progress_add_view(request, item_id):
+    _require_member(request.user)
+    item = get_object_or_404(
+        PlanItem.objects.select_related("plan"),
+        pk=item_id,
+        plan__member=request.user,
+    )
+    try:
+        hours = Decimal(request.POST.get("hours_spent", "0"))
+        add_progress_update(
+            item,
+            request.user,
+            request.POST.get("content", ""),
+            hours,
+        )
+    except InvalidOperation:
+        return JsonResponse({"error": "Invalid hours."}, status=400)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=409)
+    return redirect("learning:execution-detail", item_id=item.pk)
+
+
+@login_required
+@require_POST
+def guidance_add_view(request, item_id):
+    _require_buddy(request.user)
+    item = get_object_or_404(PlanItem.objects.select_related("plan"), pk=item_id)
+    try:
+        add_guidance_comment(item, request.user, request.POST.get("content", ""))
+    except PermissionError:
+        raise Http404()
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    return redirect("learning:buddy-approvals")
+
+
+@login_required
+@require_POST
+def evidence_submit_view(request, item_id):
+    _require_member(request.user)
+    item = get_object_or_404(
+        PlanItem.objects.select_related("plan"),
+        pk=item_id,
+        plan__member=request.user,
+    )
+    try:
+        submit_evidence(
+            item,
+            request.user,
+            request.POST.get("note", ""),
+            request.POST.get("link", ""),
+            request.FILES.getlist("files"),
+        )
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=409)
+    return redirect("learning:execution-detail", item_id=item.pk)
+
+
+@login_required
+@require_POST
+def evidence_review_view(request, submission_id):
+    _require_buddy(request.user)
+    submission = get_object_or_404(
+        EvidenceSubmission.objects.select_related("plan_item__plan"),
+        pk=submission_id,
+    )
+    try:
+        review_evidence(
+            submission,
+            request.user,
+            request.POST.get("decision", ""),
+            request.POST.get("comment", ""),
+        )
+    except PermissionError:
+        raise Http404()
+    except ValueError as exc:
+        status = 400 if "comment" in str(exc).lower() else 409
+        return JsonResponse({"error": str(exc)}, status=status)
+    return redirect("learning:buddy-approvals")
+
+
+@login_required
+def evidence_download_view(request, attachment_id):
+    attachment = get_object_or_404(
+        EvidenceAttachment.objects.select_related(
+            "submission__plan_item__plan__member",
+            "submission__plan_item__plan__buddy",
+        ),
+        pk=attachment_id,
+    )
+    if not can_download_attachment(request.user, attachment):
+        raise Http404()
+    return FileResponse(
+        attachment.file.open("rb"),
+        as_attachment=True,
+        filename=attachment.original_name,
+    )

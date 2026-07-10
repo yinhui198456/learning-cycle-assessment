@@ -1,5 +1,8 @@
 import calendar
+import uuid
 from datetime import date, timedelta
+from decimal import Decimal
+from pathlib import Path
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -446,6 +449,12 @@ class LearningPlan(models.Model):
 
 
 class PlanItem(models.Model):
+    class ExecutionStatus(models.TextChoices):
+        WORKING = "working", "执行中"
+        PENDING_REVIEW = "pending_review", "待验收"
+        CHANGES_REQUESTED = "changes_requested", "需补充"
+        COMPLETED = "completed", "已完成"
+
     plan = models.ForeignKey(
         LearningPlan,
         on_delete=models.CASCADE,
@@ -476,6 +485,11 @@ class PlanItem(models.Model):
     task = models.TextField(blank=True)
     acceptance_method = models.TextField(blank=True)
     estimated_hours = models.CharField(max_length=50, blank=True)
+    execution_status = models.CharField(
+        max_length=30,
+        choices=ExecutionStatus.choices,
+        default=ExecutionStatus.WORKING,
+    )
     sort_order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -496,6 +510,13 @@ class PlanItem(models.Model):
         if self.planned_month:
             self.planned_month = self.planned_month.replace(day=1)
         super().save(*args, **kwargs)
+
+    @property
+    def actual_hours(self):
+        return sum(
+            (update.hours_spent for update in self.progress_updates.all()),
+            Decimal("0"),
+        )
 
 
 class PlanApprovalEvent(models.Model):
@@ -523,3 +544,104 @@ class PlanApprovalEvent(models.Model):
 
     def __str__(self):
         return f"{self.plan} — {self.action}"
+
+
+class ProgressUpdate(models.Model):
+    plan_item = models.ForeignKey(
+        PlanItem,
+        on_delete=models.CASCADE,
+        related_name="progress_updates",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="progress_updates",
+    )
+    content = models.TextField()
+    hours_spent = models.DecimalField(max_digits=6, decimal_places=1)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+
+class GuidanceComment(models.Model):
+    plan_item = models.ForeignKey(
+        PlanItem,
+        on_delete=models.CASCADE,
+        related_name="guidance_comments",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="guidance_comments",
+    )
+    content = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+
+class EvidenceSubmission(models.Model):
+    plan_item = models.ForeignKey(
+        PlanItem,
+        on_delete=models.CASCADE,
+        related_name="evidence_submissions",
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="evidence_submissions",
+    )
+    note = models.TextField(blank=True)
+    link = models.URLField(blank=True)
+    batch_no = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+
+def evidence_upload_path(instance, filename):
+    suffix = Path(filename).suffix.lower()
+    return f"learning/evidence/{instance.submission_id}/{uuid.uuid4().hex}{suffix}"
+
+
+class EvidenceAttachment(models.Model):
+    submission = models.ForeignKey(
+        EvidenceSubmission,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+    file = models.FileField(upload_to=evidence_upload_path)
+    original_name = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100, blank=True)
+    size_bytes = models.PositiveIntegerField(default=0)
+    uploaded_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["uploaded_at", "pk"]
+
+
+class ReviewDecision(models.Model):
+    class Decision(models.TextChoices):
+        CHANGES_REQUESTED = "changes_requested", "退回修改"
+        COMPLETED = "completed", "验收通过"
+
+    submission = models.ForeignKey(
+        EvidenceSubmission,
+        on_delete=models.CASCADE,
+        related_name="review_decisions",
+    )
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="review_decisions",
+    )
+    decision = models.CharField(max_length=30, choices=Decision.choices)
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
