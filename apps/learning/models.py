@@ -1,4 +1,10 @@
-from django.db import models
+import calendar
+from datetime import date, timedelta
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, models, transaction
 
 
 class CapabilityCategory(models.Model):
@@ -127,3 +133,271 @@ class CapabilityMaterial(models.Model):
 
     def __str__(self):
         return f"{self.item.code} <-> {self.material.code}"
+
+
+def _add_months(source: date, months: int) -> date:
+    """Return a date shifted forward by the given number of months."""
+    month = source.month - 1 + months
+    year = source.year + month // 12
+    month = month % 12 + 1
+    day = min(source.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+class LearningCycle(models.Model):
+    class Type(models.TextChoices):
+        CALENDAR_YEAR = "calendar_year", "自然年"
+        ROLLING_12_MONTH = "rolling_12_month", "连续 12 个月"
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "进行中"
+        ARCHIVED = "archived", "已归档"
+
+    name = models.CharField(max_length=200, unique=True)
+    cycle_type = models.CharField(max_length=20, choices=Type.choices)
+    year = models.PositiveSmallIntegerField(null=True, blank=True)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.ACTIVE
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_cycles",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-start_date"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_date__gte=models.F("start_date")),
+                name="learning_cycle_end_after_start",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        cycle_type="calendar_year",
+                        year__isnull=False,
+                    )
+                    | models.Q(
+                        cycle_type="rolling_12_month",
+                        year__isnull=True,
+                    )
+                ),
+                name="learning_cycle_year_consistent",
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if self.cycle_type == self.Type.CALENDAR_YEAR and self.year:
+            self.start_date = date(self.year, 1, 1)
+            self.end_date = date(self.year, 12, 31)
+            self.name = f"{self.year} 年度学习周期"
+        elif self.cycle_type == self.Type.ROLLING_12_MONTH and self.start_date:
+            if self.end_date is None:
+                self.end_date = _add_months(self.start_date, 12) - timedelta(days=1)
+            self.name = f"{self.start_date} 至 {self.end_date} 学习周期"
+
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValidationError("结束日期不能早于开始日期。")
+
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        if self.cycle_type == self.Type.CALENDAR_YEAR and not self.year:
+            raise ValidationError({"year": "自然年周期必须填写年份。"})
+
+    @classmethod
+    def create_calendar_year(cls, year, members, created_by):
+        start_date = date(year, 1, 1)
+        end_date = date(year, 12, 31)
+        name = f"{year} 年度学习周期"
+        with transaction.atomic():
+            cycle = cls.objects.create(
+                cycle_type=cls.Type.CALENDAR_YEAR,
+                year=year,
+                start_date=start_date,
+                end_date=end_date,
+                name=name,
+                created_by=created_by,
+            )
+            for member in members:
+                cycle.add_participant(member)
+        return cycle
+
+    @classmethod
+    def create_rolling_cycle(cls, start_date, members, created_by):
+        end_date = _add_months(start_date, 12) - timedelta(days=1)
+        name = f"{start_date} 至 {end_date} 学习周期"
+        with transaction.atomic():
+            cycle = cls.objects.create(
+                cycle_type=cls.Type.ROLLING_12_MONTH,
+                start_date=start_date,
+                end_date=end_date,
+                name=name,
+                created_by=created_by,
+            )
+            for member in members:
+                cycle.add_participant(member)
+        return cycle
+
+    def add_participant(self, member):
+        User = get_user_model()
+        if not member.is_active or not member.groups.filter(name="member").exists():
+            raise ValueError("参与者必须是启用的成员。")
+
+        from apps.accounts.services import has_role
+
+        if not has_role(member, "member"):
+            raise ValueError("参与者必须具有 member 角色。")
+
+        overlap = LearningCycle.objects.filter(
+            status=self.Status.ACTIVE,
+            participants__member=member,
+            start_date__lte=self.end_date,
+            end_date__gte=self.start_date,
+        ).exclude(pk=self.pk)
+        if overlap.exists():
+            raise ValueError("该成员在重叠日期已有其他进行中的学习周期。")
+
+        participant, _ = CycleParticipant.objects.get_or_create(
+            cycle=self, member=member
+        )
+        self.create_missing_assessments(member)
+        return participant
+
+    def create_missing_assessments(self, member=None):
+        if member is not None:
+            members = [member.pk]
+        else:
+            members = list(
+                self.participants.values_list("member_id", flat=True)
+            )
+        existing_items = set(
+            Assessment.objects.filter(cycle=self, member_id__in=members).values_list(
+                "member_id", "capability_item_id"
+            )
+        )
+        active_items = list(CapabilityItem.objects.filter(is_active=True))
+        to_create = []
+        for user_id in members:
+            for item in active_items:
+                if (user_id, item.pk) not in existing_items:
+                    to_create.append(
+                        Assessment(cycle=self, member_id=user_id, capability_item=item)
+                    )
+        Assessment.objects.bulk_create(to_create)
+
+
+class CycleParticipant(models.Model):
+    cycle = models.ForeignKey(
+        LearningCycle,
+        on_delete=models.PROTECT,
+        related_name="participants",
+    )
+    member = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="cycle_participations",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["cycle", "member"],
+                name="learning_cycle_participant_unique",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.member.username} in {self.cycle.name}"
+
+
+class Assessment(models.Model):
+    PRIORITY_CHOICES = [
+        ("", "未设置"),
+        ("high", "高"),
+        ("medium", "中"),
+        ("low", "低"),
+    ]
+    QUARTER_CHOICES = [
+        ("", "未设置"),
+        ("Q1", "Q1"),
+        ("Q2", "Q2"),
+        ("Q3", "Q3"),
+        ("Q4", "Q4"),
+    ]
+
+    member = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="assessments",
+    )
+    cycle = models.ForeignKey(
+        LearningCycle,
+        on_delete=models.PROTECT,
+        related_name="assessments",
+    )
+    capability_item = models.ForeignKey(
+        CapabilityItem,
+        on_delete=models.PROTECT,
+        related_name="assessments",
+    )
+    current_level = models.PositiveSmallIntegerField(null=True, blank=True)
+    target_level = models.PositiveSmallIntegerField(null=True, blank=True)
+    gap = models.PositiveSmallIntegerField(null=True, blank=True)
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, blank=True)
+    included = models.BooleanField(default=False)
+    planned_quarter = models.CharField(
+        max_length=3, choices=QUARTER_CHOICES, blank=True
+    )
+    planned_month = models.DateField(null=True, blank=True)
+    version = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["member", "cycle", "capability_item"],
+                name="learning_assessment_unique",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(current_level__isnull=True)
+                    | models.Q(current_level__gte=0, current_level__lte=5)
+                ),
+                name="learning_assessment_current_level_range",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(target_level__isnull=True)
+                    | models.Q(target_level__gte=0, target_level__lte=5)
+                ),
+                name="learning_assessment_target_level_range",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(gap__isnull=True) | models.Q(gap__gte=0)
+                ),
+                name="learning_assessment_gap_nonnegative",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.member.username} — {self.capability_item.code}"
+
+    def save(self, *args, **kwargs):
+        if self.current_level is not None and self.target_level is not None:
+            self.gap = max(self.target_level - self.current_level, 0)
+        else:
+            self.gap = None
+        if self.planned_month:
+            self.planned_month = self.planned_month.replace(day=1)
+        super().save(*args, **kwargs)

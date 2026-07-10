@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'learning/assessment.css' %}">
+{% endblock %}
+
+{% block content %}
+{% if not cycle %}
+<section class="empty-state" aria-labelledby="empty-heading">
+  <h1 id="empty-heading">能力自评</h1>
+  <p>当前没有参与的学习周期，请联系 Leader 创建并加入周期。</p>
+</section>
+{% else %}
+<section aria-labelledby="assessment-heading">
+  <h1 id="assessment-heading">能力自评：{{ cycle.name }}</h1>
+  <p>{{ cycle.start_date }} 至 {{ cycle.end_date }}</p>
+
+  <div class="assessment-counters" aria-live="polite">
+    <span>已评估：<span id="assessed-count">{{ counts.assessed }}</span> / <span id="total-count">{{ counts.total }}</span></span>
+    <span>已纳入计划：<span id="included-count">{{ counts.included }}</span></span>
+  </div>
+
+  <form id="batch-form" aria-label="批量操作">
+    {% csrf_token %}
+    <div class="batch-bar">
+      <label>纳入计划 <input type="checkbox" id="batch-included"></label>
+      <label>优先级
+        <select id="batch-priority">
+          <option value="">-</option>
+          <option value="high">高</option>
+          <option value="medium">中</option>
+          <option value="low">低</option>
+        </select>
+      </label>
+      <label>季度
+        <select id="batch-quarter">
+          <option value="">-</option>
+          <option value="Q1">Q1</option>
+          <option value="Q2">Q2</option>
+          <option value="Q3">Q3</option>
+          <option value="Q4">Q4</option>
+        </select>
+      </label>
+      <label>月份 <input type="month" id="batch-month"></label>
+      <button type="button" id="batch-apply">应用到选中行</button>
+    </div>
+  </form>
+
+  <div class="filters" aria-label="筛选">
+    <label>类别
+      <select id="filter-category" data-filter="category">
+        <option value="">全部</option>
+      </select>
+    </label>
+    <label>一级领域
+      <select id="filter-domain-l1" data-filter="domain-l1">
+        <option value="">全部</option>
+      </select>
+    </label>
+    <label>二级领域
+      <select id="filter-domain-l2" data-filter="domain-l2">
+        <option value="">全部</option>
+      </select>
+    </label>
+    <label>建议职级
+      <select id="filter-suggested-level" data-filter="suggested-level">
+        <option value="">全部</option>
+      </select>
+    </label>
+    <label>差距
+      <select id="filter-gap" data-filter="gap">
+        <option value="">全部</option>
+        <option value="0">无差距</option>
+        <option value="1-2">1-2</option>
+        <option value="3+">3+</option>
+      </select>
+    </label>
+    <label>优先级
+      <select id="filter-priority" data-filter="priority">
+        <option value="">全部</option>
+        <option value="high">高</option>
+        <option value="medium">中</option>
+        <option value="low">低</option>
+      </select>
+    </label>
+    <label>纳入计划
+      <select id="filter-included" data-filter="included">
+        <option value="">全部</option>
+        <option value="1">已纳入</option>
+        <option value="0">未纳入</option>
+      </select>
+    </label>
+    <label>填写状态
+      <select id="filter-filled" data-filter="filled">
+        <option value="">全部</option>
+        <option value="1">已填写</option>
+        <option value="0">未填写</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="assessment-table-wrap">
+    <table class="assessment-table" role="grid" aria-label="能力自评表">
+      <thead>
+        <tr>
+          <th scope="col"><input type="checkbox" aria-label="全选当前可见行" id="select-all"></th>
+          <th scope="col" class="sticky-col">能力项</th>
+          <th scope="col">建议职级</th>
+          <th scope="col">当前掌握度</th>
+          <th scope="col">目标掌握度</th>
+          <th scope="col">差距</th>
+          <th scope="col">优先级</th>
+          <th scope="col">纳入计划</th>
+          <th scope="col">季度</th>
+          <th scope="col">月份</th>
+          <th scope="col">状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% regroup rows by category as category_groups %}
+        {% for category_group in category_groups %}
+        <tr class="category-row">
+          <th scope="row" colspan="11">
+            <details open>
+              <summary>{{ category_group.grouper.name }}</summary>
+              {% regroup category_group.list by l1 as l1_groups %}
+              {% for l1_group in l1_groups %}
+              <details open class="domain-l1">
+                <summary>{{ l1_group.grouper.code }} {{ l1_group.grouper.name }}</summary>
+                {% regroup l1_group.list by l2 as l2_groups %}
+                {% for l2_group in l2_groups %}
+                <details open class="domain-l2">
+                  <summary>{{ l2_group.grouper.code }} {{ l2_group.grouper.name }}</summary>
+                  <table class="nested-table">
+                    <tbody>
+                      {% for row in l2_group.list %}
+                      <tr
+                        class="capability-row"
+                        data-category="{{ row.category.name }}"
+                        data-domain-l1="{{ row.l1.code }}"
+                        data-domain-l2="{{ row.l2.code }}"
+                        data-suggested-level="{{ row.item.suggested_level }}"
+                        data-assessment-id="{{ row.assessment.pk }}"
+                        data-version="{{ row.assessment.version }}"
+                        data-gap="{{ row.assessment.gap|default:'' }}"
+                        data-priority="{{ row.assessment.priority }}"
+                        data-included="{{ row.assessment.included|yesno:'1,0' }}"
+                        data-filled="{% if row.assessment.current_level is not None and row.assessment.target_level is not None %}1{% else %}0{% endif %}"
+                      >
+                        <td><input type="checkbox" class="row-select" aria-label="选择 {{ row.item.name }}"></td>
+                        <td class="sticky-col"><span title="{{ row.item.code }}">{{ row.item.name }}</span></td>
+                        <td>{{ row.item.suggested_level }}</td>
+                        <td>
+                          <select class="field-current-level" aria-label="当前掌握度">
+                            <option value="">-</option>
+                            {% for i in "012345" %}
+                            <option value="{{ i }}" {% if row.assessment.current_level == i|add:0 %}selected{% endif %}>{{ i }}</option>
+                            {% endfor %}
+                          </select>
+                        </td>
+                        <td>
+                          <select class="field-target-level" aria-label="目标掌握度">
+                            <option value="">-</option>
+                            {% for i in "012345" %}
+                            <option value="{{ i }}" {% if row.assessment.target_level == i|add:0 %}selected{% endif %}>{{ i }}</option>
+                            {% endfor %}
+                          </select>
+                        </td>
+                        <td><span class="field-gap">{{ row.assessment.gap|default:"-" }}</span></td>
+                        <td>
+                          <select class="field-priority" aria-label="优先级">
+                            <option value="" {% if not row.assessment.priority %}selected{% endif %}>-</option>
+                            <option value="high" {% if row.assessment.priority == 'high' %}selected{% endif %}>高</option>
+                            <option value="medium" {% if row.assessment.priority == 'medium' %}selected{% endif %}>中</option>
+                            <option value="low" {% if row.assessment.priority == 'low' %}selected{% endif %}>低</option>
+                          </select>
+                        </td>
+                        <td><input type="checkbox" class="field-included" aria-label="纳入计划" {% if row.assessment.included %}checked{% endif %}></td>
+                        <td>
+                          <select class="field-quarter" aria-label="季度">
+                            <option value="" {% if not row.assessment.planned_quarter %}selected{% endif %}>-</option>
+                            <option value="Q1" {% if row.assessment.planned_quarter == 'Q1' %}selected{% endif %}>Q1</option>
+                            <option value="Q2" {% if row.assessment.planned_quarter == 'Q2' %}selected{% endif %}>Q2</option>
+                            <option value="Q3" {% if row.assessment.planned_quarter == 'Q3' %}selected{% endif %}>Q3</option>
+                            <option value="Q4" {% if row.assessment.planned_quarter == 'Q4' %}selected{% endif %}>Q4</option>
+                          </select>
+                        </td>
+                        <td><input type="month" class="field-month" aria-label="月份" value="{% if row.assessment.planned_month %}{{ row.assessment.planned_month|date:'Y-m' }}{% endif %}"></td>
+                        <td>
+                          <span class="row-status" data-status="idle">
+                            <span class="status-text">已保存</span>
+                            <button type="button" class="retry-button" hidden>重试</button>
+                          </span>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </details>
+                {% endfor %}
+              </details>
+              {% endfor %}
+            </details>
+          </th>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'learning/assessment.js' %}" defer></script>
+{% endblock %}
