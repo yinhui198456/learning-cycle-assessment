@@ -3,7 +3,8 @@ from http import HTTPStatus
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.http import JsonResponse
+from django.core.exceptions import PermissionDenied
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.decorators.http import require_POST
@@ -11,13 +12,20 @@ from django.views.decorators.http import require_POST
 from apps.accounts.services import has_role, primary_role
 
 from .forms import LearningCycleForm
-from .models import Assessment, CapabilityCategory, LearningCycle
+from .models import Assessment, CapabilityCategory, LearningCycle, LearningPlan, PlanItem
 from .services import (
     assessment_counts,
     ensure_assessments_for_cycle,
     get_member_current_cycle,
     save_single_assessment,
     update_assessments_batch,
+)
+from .services_planning import (
+    approve_plan,
+    edit_plan_item,
+    generate_plan,
+    request_changes,
+    submit_plan,
 )
 
 
@@ -231,3 +239,133 @@ def assessment_batch_view(request):
         result["counts"] = assessment_counts(cycle, request.user)
         return JsonResponse(result)
     return JsonResponse(result, status=result["status"])
+
+
+def _require_member(user):
+    if not has_role(user, "member"):
+        raise PermissionDenied()
+
+
+def _require_buddy(user):
+    if not has_role(user, "buddy"):
+        raise PermissionDenied()
+
+
+@login_required
+def plan_detail_view(request, plan_id):
+    _require_member(request.user)
+    plan = get_object_or_404(
+        LearningPlan.objects.prefetch_related("items", "approval_events"),
+        pk=plan_id,
+        member=request.user,
+    )
+    return render(request, "learning/plan_detail.html", {"plan": plan})
+
+
+@login_required
+@require_POST
+def plan_generate_view(request, cycle_id):
+    _require_member(request.user)
+    cycle = get_object_or_404(
+        LearningCycle,
+        pk=cycle_id,
+        status=LearningCycle.Status.ACTIVE,
+        participants__member=request.user,
+    )
+    try:
+        plan = generate_plan(request.user, cycle)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=409)
+    return redirect("learning:plan-detail", plan_id=plan.pk)
+
+
+@login_required
+@require_POST
+def plan_submit_view(request, plan_id):
+    _require_member(request.user)
+    plan = get_object_or_404(LearningPlan, pk=plan_id, member=request.user)
+    try:
+        submit_plan(plan, request.user)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=409)
+    return redirect("learning:plan-detail", plan_id=plan.pk)
+
+
+@login_required
+@require_POST
+def plan_item_edit_view(request, item_id):
+    _require_member(request.user)
+    item = get_object_or_404(
+        PlanItem.objects.select_related("plan"),
+        pk=item_id,
+        plan__member=request.user,
+    )
+    try:
+        edit_plan_item(
+            item,
+            request.user,
+            {
+                "task": request.POST.get("task", item.task),
+                "acceptance_method": request.POST.get(
+                    "acceptance_method", item.acceptance_method
+                ),
+                "estimated_hours": request.POST.get(
+                    "estimated_hours", item.estimated_hours
+                ),
+                "planned_quarter": request.POST.get(
+                    "planned_quarter", item.planned_quarter
+                ),
+                "planned_month": request.POST.get("planned_month", item.planned_month),
+            },
+        )
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=409)
+    return redirect("learning:plan-detail", plan_id=item.plan_id)
+
+
+@login_required
+def buddy_approvals_view(request):
+    _require_buddy(request.user)
+    plans = LearningPlan.objects.filter(
+        buddy=request.user,
+        member__mentorships_as_member__buddy=request.user,
+        member__mentorships_as_member__ended_at__isnull=True,
+        status=LearningPlan.Status.PENDING_APPROVAL,
+    ).select_related("member", "cycle")
+    return render(request, "learning/buddy_approvals.html", {"plans": plans})
+
+
+def _buddy_plan_or_404(user, plan_id):
+    _require_buddy(user)
+    try:
+        return LearningPlan.objects.get(
+            pk=plan_id,
+            buddy=user,
+            member__mentorships_as_member__buddy=user,
+            member__mentorships_as_member__ended_at__isnull=True,
+        )
+    except LearningPlan.DoesNotExist:
+        raise Http404()
+
+
+@login_required
+@require_POST
+def plan_approve_view(request, plan_id):
+    plan = _buddy_plan_or_404(request.user, plan_id)
+    try:
+        approve_plan(plan, request.user)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=409)
+    return redirect("learning:buddy-approvals")
+
+
+@login_required
+@require_POST
+def plan_request_changes_view(request, plan_id):
+    plan = _buddy_plan_or_404(request.user, plan_id)
+    try:
+        request_changes(plan, request.user, request.POST.get("comment", ""))
+    except ValueError as exc:
+        status = 400 if "comment" in str(exc).lower() else 409
+        return JsonResponse({"error": str(exc)}, status=status)
+    return redirect("learning:buddy-approvals")

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section aria-labelledby="plan-heading">
+  <h1 id="plan-heading">学习计划：{{ plan.cycle.name }}</h1>
+  <p>状态：{{ plan.get_status_display }}；Buddy：{{ plan.buddy.username }}</p>
+
+  {% if plan.status == "draft" or plan.status == "changes_requested" %}
+  <form method="post" action="{% url 'learning:plan-submit' plan.pk %}">
+    {% csrf_token %}
+    <button type="submit">提交给 Buddy</button>
+  </form>
+  {% endif %}
+
+  <h2>计划项</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>能力项</th>
+        <th>差距</th>
+        <th>优先级</th>
+        <th>计划月份</th>
+        <th>学习任务</th>
+        <th>验收方式</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in plan.items.all %}
+      <tr>
+        <td>{{ item.capability_code }} {{ item.capability_name }}</td>
+        <td>{{ item.gap|default:"-" }}</td>
+        <td>{{ item.get_priority_display }}</td>
+        <td>{{ item.planned_month|date:"Y-m" }}</td>
+        <td>{{ item.task }}</td>
+        <td>{{ item.acceptance_method }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>审批记录</h2>
+  <ol>
+    {% for event in plan.approval_events.all %}
+    <li>{{ event.created_at }} {{ event.actor.username }} {{ event.get_action_display }} {{ event.comment }}</li>
+    {% empty %}
+    <li>暂无审批记录</li>
+    {% endfor %}
+  </ol>
+</section>
+{% endblock %}

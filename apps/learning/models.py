@@ -2,9 +2,9 @@ import calendar
 from datetime import date, timedelta
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, models, transaction
+from django.db import models, transaction
+from django.utils import timezone
 
 
 class CapabilityCategory(models.Model):
@@ -248,7 +248,6 @@ class LearningCycle(models.Model):
         return cycle
 
     def add_participant(self, member):
-        User = get_user_model()
         if not member.is_active or not member.groups.filter(name="member").exists():
             raise ValueError("参与者必须是启用的成员。")
 
@@ -401,3 +400,126 @@ class Assessment(models.Model):
         if self.planned_month:
             self.planned_month = self.planned_month.replace(day=1)
         super().save(*args, **kwargs)
+
+
+class LearningPlan(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "草稿"
+        PENDING_APPROVAL = "pending_approval", "待 Buddy 审批"
+        CHANGES_REQUESTED = "changes_requested", "需修改"
+        ACTIVE = "active", "执行中"
+
+    member = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="learning_plans",
+    )
+    cycle = models.ForeignKey(
+        LearningCycle,
+        on_delete=models.PROTECT,
+        related_name="learning_plans",
+    )
+    buddy = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="buddy_learning_plans",
+    )
+    status = models.CharField(
+        max_length=30, choices=Status.choices, default=Status.DRAFT
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["member", "cycle"],
+                name="learning_plan_member_cycle_unique",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.member.username} — {self.cycle.name}"
+
+
+class PlanItem(models.Model):
+    plan = models.ForeignKey(
+        LearningPlan,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    assessment = models.ForeignKey(
+        Assessment,
+        on_delete=models.PROTECT,
+        related_name="plan_items",
+    )
+    capability_item = models.ForeignKey(
+        CapabilityItem,
+        on_delete=models.PROTECT,
+        related_name="plan_items",
+    )
+    capability_code = models.CharField(max_length=20)
+    capability_name = models.CharField(max_length=200)
+    suggested_level = models.CharField(max_length=50, blank=True)
+    materials_snapshot = models.TextField(blank=True)
+    current_level = models.PositiveSmallIntegerField(null=True, blank=True)
+    target_level = models.PositiveSmallIntegerField(null=True, blank=True)
+    gap = models.PositiveSmallIntegerField(null=True, blank=True)
+    priority = models.CharField(max_length=10, choices=Assessment.PRIORITY_CHOICES, blank=True)
+    planned_quarter = models.CharField(
+        max_length=3, choices=Assessment.QUARTER_CHOICES, blank=True
+    )
+    planned_month = models.DateField(null=True, blank=True)
+    task = models.TextField(blank=True)
+    acceptance_method = models.TextField(blank=True)
+    estimated_hours = models.CharField(max_length=50, blank=True)
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "capability_code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["plan", "assessment"],
+                name="learning_plan_item_assessment_unique",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.plan} — {self.capability_code}"
+
+    def save(self, *args, **kwargs):
+        if self.planned_month:
+            self.planned_month = self.planned_month.replace(day=1)
+        super().save(*args, **kwargs)
+
+
+class PlanApprovalEvent(models.Model):
+    class Action(models.TextChoices):
+        SUBMITTED = "submitted", "已提交"
+        CHANGES_REQUESTED = "changes_requested", "退回修改"
+        APPROVED = "approved", "已批准"
+
+    plan = models.ForeignKey(
+        LearningPlan,
+        on_delete=models.CASCADE,
+        related_name="approval_events",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="plan_approval_events",
+    )
+    action = models.CharField(max_length=30, choices=Action.choices)
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+    def __str__(self):
+        return f"{self.plan} — {self.action}"
