@@ -1,13 +1,28 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>团队学习计划</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <main>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+    <header class="site-header">
+        <div class="brand">团队学习计划</div>
+        {% with match=request.resolver_match %}
+        <nav aria-label="主导航" class="main-nav">
+            <a href="{% url 'home' %}" {% if match.url_name == "home" %}aria-current="page"{% endif %}>工作台</a>
+            <a href="{% url 'dashboard:member' %}" {% if match.namespace == "dashboard" and match.url_name == "member" %}aria-current="page"{% endif %}>个人</a>
+            <a href="{% url 'dashboard:buddy' %}" {% if match.namespace == "dashboard" and match.url_name == "buddy" %}aria-current="page"{% endif %}>Buddy</a>
+            <a href="{% url 'dashboard:leader' %}" {% if match.namespace == "dashboard" and match.url_name == "leader" %}aria-current="page"{% endif %}>Leader</a>
+            <a href="{% url 'learning:assessment' %}" {% if match.namespace == "learning" and match.url_name == "assessment" %}aria-current="page"{% endif %}>能力自评</a>
+        </nav>
+        {% endwith %}
+    </header>
+    <main id="main" tabindex="-1" class="page-shell">
         {% block content %}
         <h1>团队年度学习计划</h1>
         <p>工作台占位</p>
