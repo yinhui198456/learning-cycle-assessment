@@ -5,7 +5,7 @@
   <h1 id="plan-heading">学习计划：{{ plan.cycle.name }}</h1>
   <p>状态：{{ plan.get_status_display }}；Buddy：{{ plan.buddy.username }}</p>
 
-  {% if plan.status == "draft" or plan.status == "changes_requested" %}
+  {% if can_edit_plan %}
   <form method="post" action="{% url 'learning:plan-submit' plan.pk %}">
     {% csrf_token %}
     <button type="submit">提交给 Buddy</button>
@@ -34,6 +34,29 @@
         <td>{{ item.task }}</td>
         <td>{{ item.acceptance_method }}</td>
       </tr>
+      {% if can_edit_plan %}
+      <tr>
+        <td colspan="6">
+          <form method="post" action="{% url 'learning:plan-item-edit' item.pk %}">
+            {% csrf_token %}
+            <label>学习任务 <textarea name="task" rows="2" required>{{ item.task }}</textarea></label>
+            <label>验收方式 <textarea name="acceptance_method" rows="2" required>{{ item.acceptance_method }}</textarea></label>
+            <label>预计工时 <input type="text" name="estimated_hours" value="{{ item.estimated_hours }}"></label>
+            <label>计划季度
+              <select name="planned_quarter">
+                <option value="" {% if item.planned_quarter == "" %}selected{% endif %}>未设置</option>
+                <option value="Q1" {% if item.planned_quarter == "Q1" %}selected{% endif %}>Q1</option>
+                <option value="Q2" {% if item.planned_quarter == "Q2" %}selected{% endif %}>Q2</option>
+                <option value="Q3" {% if item.planned_quarter == "Q3" %}selected{% endif %}>Q3</option>
+                <option value="Q4" {% if item.planned_quarter == "Q4" %}selected{% endif %}>Q4</option>
+              </select>
+            </label>
+            <label>计划月份 <input type="date" name="planned_month" value="{{ item.planned_month|date:"Y-m-d" }}"></label>
+            <button type="submit">保存修改</button>
+          </form>
+        </td>
+      </tr>
+      {% endif %}
       {% endfor %}
     </tbody>
   </table>

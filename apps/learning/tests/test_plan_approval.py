@@ -274,3 +274,64 @@ def test_blank_request_changes_view_returns_bad_request(plan, member, buddy_clie
     )
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_buddy_can_view_assigned_pending_plan_detail(plan, member, buddy_client):
+    submit_plan(plan, member)
+
+    response = buddy_client.get(reverse("learning:plan-detail", args=[plan.pk]))
+
+    assert response.status_code == HTTPStatus.OK
+    assert plan.cycle.name in response.content.decode()
+    assert plan.items.get().capability_name in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_buddy_approvals_page_links_to_plan_detail(plan, member, buddy_client):
+    submit_plan(plan, member)
+
+    response = buddy_client.get(reverse("learning:buddy-approvals"))
+
+    assert response.status_code == HTTPStatus.OK
+    assert reverse("learning:plan-detail", args=[plan.pk]) in response.content.decode()
+    assert plan.items.get().capability_name in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_member_draft_plan_detail_shows_inline_edit_form(plan, member_client):
+    item = plan.items.get()
+
+    response = member_client.get(reverse("learning:plan-detail", args=[plan.pk]))
+
+    assert response.status_code == HTTPStatus.OK
+    content = response.content.decode()
+    assert reverse("learning:plan-item-edit", args=[item.pk]) in content
+    assert f'name="task"' in content
+    assert f'name="acceptance_method"' in content
+
+
+@pytest.mark.django_db
+def test_member_pending_plan_detail_hides_inline_edit_form(plan, member_client):
+    submit_plan(plan, plan.member)
+
+    response = member_client.get(reverse("learning:plan-detail", args=[plan.pk]))
+
+    assert response.status_code == HTTPStatus.OK
+    content = response.content.decode()
+    assert reverse("learning:plan-item-edit", args=[plan.items.get().pk]) not in content
+
+
+@pytest.mark.django_db
+def test_buddy_changes_requested_plan_detail_hides_member_edit_actions(
+    plan, member, buddy, buddy_client
+):
+    submit_plan(plan, member)
+    request_changes(plan, buddy, "revise")
+
+    response = buddy_client.get(reverse("learning:plan-detail", args=[plan.pk]))
+
+    assert response.status_code == HTTPStatus.OK
+    content = response.content.decode()
+    assert reverse("learning:plan-item-edit", args=[plan.items.get().pk]) not in content
+    assert reverse("learning:plan-submit", args=[plan.pk]) not in content

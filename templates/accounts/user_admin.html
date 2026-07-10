@@ -9,6 +9,7 @@
     <a href="{% url 'learning:cycle_admin' %}">学习周期管理</a>
 </p>
 
+<div class="table-wrap">
 <table>
     <thead>
         <tr>
@@ -36,7 +37,7 @@
                 {% if user.groups.all %}
                 <form method="post" action="{% url 'user_buddy' user.pk %}">
                     {% csrf_token %}
-                    <select name="buddy">
+                    <select name="buddy" aria-label="选择 Buddy">
                         {% for buddy in buddies %}
                         <option value="{{ buddy.pk }}">{{ buddy.username }}</option>
                         {% endfor %}
@@ -49,4 +50,5 @@
         {% endfor %}
     </tbody>
 </table>
+</div>
 {% endblock %}

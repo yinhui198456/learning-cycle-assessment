@@ -342,13 +342,24 @@ def _require_buddy(user):
 
 @login_required
 def plan_detail_view(request, plan_id):
-    _require_member(request.user)
     plan = get_object_or_404(
         LearningPlan.objects.prefetch_related("items", "approval_events"),
         pk=plan_id,
-        member=request.user,
     )
-    return render(request, "learning/plan_detail.html", {"plan": plan})
+    can_edit_plan = False
+    if plan.member_id == request.user.pk:
+        _require_member(request.user)
+        can_edit_plan = plan.status in (
+            LearningPlan.Status.DRAFT,
+            LearningPlan.Status.CHANGES_REQUESTED,
+        )
+    else:
+        plan = _buddy_plan_or_404(request.user, plan_id)
+    return render(
+        request,
+        "learning/plan_detail.html",
+        {"plan": plan, "can_edit_plan": can_edit_plan},
+    )
 
 
 @login_required
@@ -420,8 +431,20 @@ def buddy_approvals_view(request):
         member__mentorships_as_member__buddy=request.user,
         member__mentorships_as_member__ended_at__isnull=True,
         status=LearningPlan.Status.PENDING_APPROVAL,
-    ).select_related("member", "cycle")
-    return render(request, "learning/buddy_approvals.html", {"plans": plans})
+    ).select_related("member", "cycle").prefetch_related("items")
+    pending_evidence = EvidenceSubmission.objects.filter(
+        plan_item__plan__buddy=request.user,
+        plan_item__plan__member__mentorships_as_member__buddy=request.user,
+        plan_item__plan__member__mentorships_as_member__ended_at__isnull=True,
+        plan_item__execution_status=PlanItem.ExecutionStatus.PENDING_REVIEW,
+    ).select_related("plan_item__plan__member", "submitted_by").prefetch_related(
+        "attachments"
+    ).order_by("-created_at")
+    return render(
+        request,
+        "learning/buddy_approvals.html",
+        {"plans": plans, "pending_evidence": pending_evidence},
+    )
 
 
 def _buddy_plan_or_404(user, plan_id):

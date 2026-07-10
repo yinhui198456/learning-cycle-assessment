@@ -121,3 +121,23 @@ def test_other_member_evidence_submit_view_returns_not_found(
     )
 
     assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_pending_evidence_appears_on_buddy_approvals_page(
+    active_plan_item, member_client, buddy_client
+):
+    response = member_client.post(
+        reverse("learning:evidence-submit", args=[active_plan_item.pk]),
+        {"note": "done", "link": "", "files": [_upload()]},
+    )
+    assert response.status_code == HTTPStatus.FOUND
+    submission = EvidenceSubmission.objects.get()
+
+    response = buddy_client.get(reverse("learning:buddy-approvals"))
+    assert response.status_code == HTTPStatus.OK
+    content = response.content.decode()
+    assert active_plan_item.plan.member.username in content
+    assert submission.note in content
+    assert reverse("learning:evidence-review", args=[submission.pk]) in content
+    assert reverse("learning:plan-detail", args=[active_plan_item.plan_id]) in content

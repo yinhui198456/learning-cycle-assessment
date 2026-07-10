@@ -6,7 +6,25 @@
 
   {% for plan in plans %}
   <article>
-    <h2>{{ plan.member.username }} — {{ plan.cycle.name }}</h2>
+    <h2><a href="{% url 'learning:plan-detail' plan.pk %}">{{ plan.member.username }} — {{ plan.cycle.name }}</a></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>能力项</th>
+          <th>学习任务</th>
+          <th>验收方式</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in plan.items.all %}
+        <tr>
+          <td>{{ item.capability_code }} {{ item.capability_name }}</td>
+          <td>{{ item.task }}</td>
+          <td>{{ item.acceptance_method }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     <form method="post" action="{% url 'learning:plan-approve' plan.pk %}">
       {% csrf_token %}
       <button type="submit">通过</button>
@@ -20,5 +38,32 @@
   {% empty %}
   <p>暂无待审批计划。</p>
   {% endfor %}
+
+  {% if pending_evidence %}
+  <h2>待验收成果</h2>
+  {% for submission in pending_evidence %}
+  <article>
+    <h3><a href="{% url 'learning:plan-detail' submission.plan_item.plan_id %}">{{ submission.plan_item.plan.member.username }} — {{ submission.plan_item.capability_name }}</a></h3>
+    <p>提交说明：{{ submission.note }}</p>
+    {% if submission.link %}<p>链接：<a href="{{ submission.link }}" target="_blank" rel="noopener">{{ submission.link }}</a></p>{% endif %}
+    <ul>
+      {% for attachment in submission.attachments.all %}
+      <li><a href="{% url 'learning:evidence-download' attachment.pk %}">{{ attachment.original_name }}</a></li>
+      {% endfor %}
+    </ul>
+    <form method="post" action="{% url 'learning:evidence-review' submission.pk %}">
+      {% csrf_token %}
+      <label>验收意见
+        <select name="decision" required>
+          <option value="completed">验收通过</option>
+          <option value="changes_requested">退回修改</option>
+        </select>
+      </label>
+      <label>备注 <textarea name="comment"></textarea></label>
+      <button type="submit">提交验收</button>
+    </form>
+  </article>
+  {% endfor %}
+  {% endif %}
 </section>
 {% endblock %}

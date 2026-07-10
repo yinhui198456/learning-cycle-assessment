@@ -26,6 +26,17 @@ def test_valid_user_can_log_in_and_reach_home(client):
 
 
 @pytest.mark.django_db
+def test_login_without_next_redirects_to_home(client):
+    User.objects.create_user(username="member", password="testpass123")
+    response = client.post(
+        reverse("login"),
+        {"username": "member", "password": "testpass123"},
+    )
+    assert response.status_code == 302
+    assert response.url == reverse("home")
+
+
+@pytest.mark.django_db
 def test_invalid_credentials_remain_on_login_page(client):
     response = client.post(
         reverse("login"),

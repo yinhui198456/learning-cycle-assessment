@@ -103,6 +103,28 @@ textarea {
   color: var(--accent-ink);
 }
 
+.main-nav a,
+button {
+  min-height: 44px;
+  min-width: 44px;
+  touch-action: manipulation;
+}
+
+.main-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button {
+  cursor: pointer;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .page-shell {
   max-width: 1180px;
   margin: 0 auto;

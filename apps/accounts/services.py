@@ -13,7 +13,21 @@ def has_role(user, role_name):
     """Return True if the user belongs to the named Django group."""
     if not getattr(user, "is_authenticated", False):
         return False
-    return user.groups.filter(name=role_name).exists()
+    cache_attr = "_cached_group_names"
+    group_names = getattr(user, cache_attr, None)
+    if group_names is None:
+        group_names = set(user.groups.values_list("name", flat=True))
+        setattr(user, cache_attr, group_names)
+    return role_name in group_names
+
+
+def nav_roles(request):
+    """Expose role booleans to templates for the base nav."""
+    return {
+        "is_member": has_role(request.user, "member"),
+        "is_buddy": has_role(request.user, "buddy"),
+        "is_leader": has_role(request.user, "leader"),
+    }
 
 
 def primary_role(user):
