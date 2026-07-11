@@ -7,4 +7,4 @@ services:
       - staticfiles:/app/staticfiles:ro
       - media:/app/media:ro
       - ./docker/nginx.https.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./docker/ssl:/etc/nginx/ssl:ro
+      - /opt/team_learn_plan_ssl:/etc/nginx/ssl:ro
