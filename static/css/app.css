@@ -120,6 +120,18 @@ button {
   cursor: pointer;
 }
 
+.main-nav a:hover {
+  background: var(--line);
+}
+
+button:hover {
+  background: #245c52;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
 .table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;

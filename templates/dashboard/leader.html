@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block title %}Leader 工作台 - 团队学习计划{% endblock %}
+
 {% block content %}
 <h1>Leader 工作台</h1>
 
@@ -16,10 +18,21 @@
 </section>
 
 <section>
+  <h2>导出与历史</h2>
+  <ul>
+    {% for cycle in active_cycles %}
+    <li>{{ cycle.name }} — <a href="{% url 'reports:team' cycle.pk %}">导出团队报告</a> · <a href="{% url 'dashboard:history' %}">历史周期</a></li>
+    {% empty %}
+    <li>暂无进行中的学习周期。</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section>
   <h2>已完成下钻</h2>
   <ul>
     {% for item in completed_items %}
-    <li>{{ item.plan.member.username }} — {{ item.capability_name }}</li>
+    <li><a href="{% url 'learning:execution-detail' item.pk %}">{{ item.plan.member.username }} — {{ item.capability_name }}</a></li>
     {% empty %}
     <li>暂无已完成项。</li>
     {% endfor %}

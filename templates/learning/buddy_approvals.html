@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block title %}Buddy 审批 - 团队学习计划{% endblock %}
+
 {% block content %}
 <section aria-labelledby="approval-heading">
   <h1 id="approval-heading">Buddy 审批</h1>
@@ -25,11 +27,11 @@
         {% endfor %}
       </tbody>
     </table>
-    <form method="post" action="{% url 'learning:plan-approve' plan.pk %}">
+    <form method="post" action="{% url 'learning:plan-approve' plan.pk %}" onsubmit="return confirm('确定要通过该学习计划吗？')">
       {% csrf_token %}
       <button type="submit">通过</button>
     </form>
-    <form method="post" action="{% url 'learning:plan-request-changes' plan.pk %}">
+    <form method="post" action="{% url 'learning:plan-request-changes' plan.pk %}" onsubmit="return confirm('确定要退回该计划让成员修改吗？')">
       {% csrf_token %}
       <label>退回意见 <textarea name="comment" required></textarea></label>
       <button type="submit">退回修改</button>
@@ -51,7 +53,7 @@
       <li><a href="{% url 'learning:evidence-download' attachment.pk %}">{{ attachment.original_name }}</a></li>
       {% endfor %}
     </ul>
-    <form method="post" action="{% url 'learning:evidence-review' submission.pk %}">
+    <form method="post" action="{% url 'learning:evidence-review' submission.pk %}" onsubmit="return confirm('确定要提交验收结果吗？')">
       {% csrf_token %}
       <label>验收意见
         <select name="decision" required>

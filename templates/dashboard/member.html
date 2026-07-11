@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 
+{% block title %}个人工作台 - 团队学习计划{% endblock %}
+
 {% block content %}
 <h1>个人工作台</h1>
 {% if plan %}
-<p>当前周期：{{ plan.cycle.name }}；计划状态：{{ plan.get_status_display }}</p>
+<p>当前周期：{{ plan.cycle.name }}；计划状态：{{ plan.get_status_display }} — <a href="{% url 'learning:plan-detail' plan.pk %}">查看计划</a></p>
 <h2>下一步</h2>
 <ul>
   {% for item in next_items %}
-  <li>{{ item.capability_name }} — {{ item.get_execution_status_display }} — {{ item.planned_month|date:"Y-m" }}</li>
+  <li><a href="{% url 'learning:execution-detail' item.pk %}">{{ item.capability_name }}</a> — {{ item.get_execution_status_display }} — {{ item.planned_month|date:"Y-m" }}</li>
   {% empty %}
   <li>暂无待办。</li>
   {% endfor %}

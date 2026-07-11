@@ -1,12 +1,14 @@
 {% extends "base.html" %}
 
+{% block title %}学习计划 - 团队学习计划{% endblock %}
+
 {% block content %}
 <section aria-labelledby="plan-heading">
   <h1 id="plan-heading">学习计划：{{ plan.cycle.name }}</h1>
   <p>状态：{{ plan.get_status_display }}；Buddy：{{ plan.buddy.username }}</p>
 
   {% if can_edit_plan %}
-  <form method="post" action="{% url 'learning:plan-submit' plan.pk %}">
+  <form method="post" action="{% url 'learning:plan-submit' plan.pk %}" onsubmit="return confirm('确定要提交计划给 Buddy 审批吗？')">
     {% csrf_token %}
     <button type="submit">提交给 Buddy</button>
   </form>

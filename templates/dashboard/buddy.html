@@ -1,12 +1,14 @@
 {% extends "base.html" %}
 
+{% block title %}Buddy 工作台 - 团队学习计划{% endblock %}
+
 {% block content %}
 <h1>Buddy 工作台</h1>
 
 <h2>待审批计划</h2>
 <ul>
   {% for plan in pending_plans %}
-  <li>{{ plan.member.username }} — {{ plan.cycle.name }}</li>
+  <li><a href="{% url 'learning:plan-detail' plan.pk %}">{{ plan.member.username }} — {{ plan.cycle.name }}</a></li>
   {% empty %}
   <li>暂无待审批计划。</li>
   {% endfor %}
@@ -15,7 +17,7 @@
 <h2>待验收成果</h2>
 <ul>
   {% for item in pending_reviews %}
-  <li>{{ item.plan.member.username }} — {{ item.capability_name }}</li>
+  <li><a href="{% url 'learning:execution-detail' item.pk %}">{{ item.plan.member.username }} — {{ item.capability_name }}</a></li>
   {% empty %}
   <li>暂无待验收成果。</li>
   {% endfor %}
@@ -24,7 +26,7 @@
 <h2>退回后待补充</h2>
 <ul>
   {% for item in changes_requested %}
-  <li>{{ item.plan.member.username }} — {{ item.capability_name }}</li>
+  <li><a href="{% url 'learning:execution-detail' item.pk %}">{{ item.plan.member.username }} — {{ item.capability_name }}</a></li>
   {% empty %}
   <li>暂无待补充项。</li>
   {% endfor %}

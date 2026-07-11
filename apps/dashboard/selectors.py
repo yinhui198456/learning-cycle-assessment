@@ -128,4 +128,5 @@ def leader_context():
         "repeated_changes_items": repeated_changes_items(),
         "pending_plans": pending_plans(),
         "pending_reviews": pending_reviews(),
+        "active_cycles": active_cycles(),
     }
