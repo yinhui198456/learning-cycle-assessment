@@ -4,7 +4,8 @@
 
 - Docker Engine
 - Docker Compose（v2 及以上，支持 `!override` 标签）
-- 生产服务器需开放 TCP 443（HTTPS）与 8080（HTTP 跳转）端口
+- 生产服务器外部建议开放 TCP 8443（HTTPS）与 8080（HTTP 跳转）；内网仍可使用 443
+- 若只给内部使用，开放 443 即可
 
 ## 本地开发部署（HTTP）
 
@@ -52,7 +53,7 @@ cp .env.production .env.production
 | --- | --- |
 | `DJANGO_SECRET_KEY` | 替换为强随机字符串 |
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1,10.0.0.16,118.25.27.18` 或你的域名 |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://10.0.0.16,https://118.25.27.18` 或你的域名 |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://10.0.0.16,https://118.25.27.18,https://118.25.27.18:8443` 或你的域名 |
 | `DJANGO_SECURE_SSL_REDIRECT` | `true` |
 | `DJANGO_SESSION_COOKIE_SECURE` | `true` |
 | `DJANGO_CSRF_COOKIE_SECURE` | `true` |
@@ -83,10 +84,13 @@ docker compose -f compose.yaml -f compose.https.yaml up --build -d
 `compose.https.yaml` 会：
 
 - 将 web 服务的 `env_file` 覆盖为 `.env.production`
-- 让 nginx 暴露 443 端口并挂载 HTTPS 配置与证书
-- 保留 HTTP 8080 端口用于自动跳转 HTTPS
+- 让 nginx 暴露 443（内网）和 8443（外网）两个 HTTPS 端口，并挂载 HTTPS 配置与证书
+- 保留 HTTP 8080 端口用于自动跳转 HTTPS（外网 8080 会跳转到 8443）
 
-访问：`https://<你的IP或域名>/`
+访问：
+
+- 内网：`https://<你的IP或域名>/`
+- 外网：`https://<你的IP或域名>:8443/`
 
 ### 4. 持续部署
 
@@ -114,8 +118,12 @@ docker compose -f compose.yaml -f compose.https.yaml exec web \
 
 创建完成后通过以下地址登录：
 
-- 普通用户登录：`https://<你的IP或域名>/accounts/login/`
-- Django 管理后台：`https://<你的IP或域名>/admin/`
+- 普通用户登录：
+  - 内网：`https://<你的IP或域名>/accounts/login/`
+  - 外网：`https://<你的IP或域名>:8443/accounts/login/`
+- Django 管理后台：
+  - 内网：`https://<你的IP或域名>/admin/`
+  - 外网：`https://<你的IP或域名>:8443/admin/`
 
 登录后，在 Django 后台 `/admin/accounts/user/` 和 `/admin/auth/group/` 中：
 
@@ -153,7 +161,7 @@ CONFIRM_RESTORE=yes docker compose -f compose.yaml -f compose.https.yaml exec -T
 
 ## 健康检查
 
-- 应用健康：`https://<host>/health/`
+- 应用健康：`https://<host>:8443/health/`（外网）或 `https://<host>/health/`（内网）
 - web 容器健康检查：`curl http://localhost:8000/health/`
 - 数据库健康检查：`pg_isready`
 
@@ -188,7 +196,7 @@ CONFIRM_RESTORE=yes docker compose -f compose.yaml -f compose.https.yaml exec -T
 
 | 现象 | 排查方向 |
 | --- | --- |
-| 外部无法访问 443/8080 | 检查云安全组/防火墙是否放行对应端口 |
+| 外部无法访问 8443/8080 | 检查云安全组/防火墙是否放行对应端口；443 仅在内网使用 |
 | nginx 启动失败 | 查看 `docker compose logs nginx`，常见原因是证书路径不存在 |
 | web 健康检查失败 | 检查 `.env.production` 是否加载、数据库是否健康 |
 | 静态文件 404 | 确认 `collectstatic` 已执行且 nginx 挂载了 `staticfiles` volume |
