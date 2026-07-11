@@ -27,6 +27,7 @@ COPY --chown=appuser:appgroup config ./config
 COPY --chown=appuser:appgroup apps ./apps
 COPY --chown=appuser:appgroup static ./static
 COPY --chown=appuser:appgroup templates ./templates
+COPY --chown=appuser:appgroup scripts ./scripts
 
 COPY --chown=appuser:appgroup docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
