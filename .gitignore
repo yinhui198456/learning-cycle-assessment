@@ -21,6 +21,7 @@ staticfiles/
 local/
 logs/
 emails/
+output/
 
 # IDEs
 .idea/

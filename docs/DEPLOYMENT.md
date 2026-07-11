@@ -25,6 +25,8 @@ Required variables for the `web` service:
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated list of allowed hosts, e.g. `localhost,127.0.0.1`. |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | Comma-separated list of trusted origins, e.g. `http://localhost`. |
 | `DJANGO_SECURE_SSL_REDIRECT` | Set to `false` for local plain-HTTP deployments; defaults to `true`. |
+| `DJANGO_SESSION_COOKIE_SECURE` | Set to `false` for local plain-HTTP deployments; use `true` behind HTTPS. |
+| `DJANGO_CSRF_COOKIE_SECURE` | Set to `false` for local plain-HTTP deployments; use `true` behind HTTPS. |
 | `DATABASE_URL` | PostgreSQL connection string. The compose file overrides this to point at the `db` service. |
 
 ## Run the Stack
