@@ -136,6 +136,33 @@ CONFIRM_RESTORE=yes docker compose -f compose.yaml -f compose.https.yaml exec -T
 - web 容器健康检查：`curl http://localhost:8000/health/`
 - 数据库健康检查：`pg_isready`
 
+## 循环工程（Loop Engineering）
+
+项目配置了两条 Playwright 验证循环，用于在生产环境持续验证端到端可用性与核心流程连贯性。
+
+### 只读冒烟循环
+
+- Cron：`/etc/cron.d/team-learn-plan-smoke`，每小时 :17 执行
+- 脚本：`scripts/smoke-loop.sh`
+- 测试：`tests/smoke/test_smoke_readonly.py`
+- 内容：Member / Buddy / Leader 登录并检查对应工作台
+- 日志：`output/smoke-loop.log`
+- 截图：`output/smoke-screenshots/`
+
+### 完整用户旅程循环
+
+- Cron：`/etc/cron.d/team-learn-plan-journey`，每天 03:42 执行
+- 脚本：`scripts/journey-loop.sh`
+- 测试：`tests/smoke/test_smoke_journey.py`
+- 数据命令：
+  - `python manage.py create_smoke_journey`：创建/更新专用测试用户与 Buddy 关系
+  - `python manage.py delete_smoke_journey`：清理测试产生的周期、计划、评估与证据数据
+- 流程：Leader 创建周期 → Member 自评并生成计划 → Buddy 审批 → Member 提交进展与证据 → Buddy 验收 → Leader 归档周期
+- 日志：`output/journey-loop.log`
+- 截图：`output/journey-screenshots/`
+
+> 测试账号与密码从 `/opt/team_learn_plan_smoke.env` 读取，文件不进入 Git。
+
 ## 故障排查
 
 | 现象 | 排查方向 |
