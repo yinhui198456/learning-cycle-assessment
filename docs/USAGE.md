@@ -24,6 +24,27 @@
 | 能力目录 | `/learning/admin/capabilities/` | Leader/Admin 维护能力模型 |
 | Django 后台 | `/admin/` | Admin 数据管理 |
 
+## 首次登录
+
+系统没有预置默认管理员密码，首次使用需先创建超级用户：
+
+```bash
+docker compose -f compose.yaml -f compose.https.yaml exec web \
+    python manage.py createsuperuser
+```
+
+然后访问登录页：
+
+- 普通用户登录：`https://<你的IP或域名>/accounts/login/`
+- Django 后台：`https://<你的IP或域名>/admin/`
+
+登录后，超级用户可在 Django 后台 `/admin/auth/group/` 和 `/admin/accounts/user/` 中：
+
+- 将普通用户加入 `member`、`buddy`、`leader` 组来分配角色
+- 在 `Mentorship` 中建立 `member -> buddy` 关系
+
+角色组（`member`/`buddy`/`leader`）会在数据库迁移时自动创建，无需手动新建。
+
 ## 典型流程
 
 ### 1. 初始化能力目录

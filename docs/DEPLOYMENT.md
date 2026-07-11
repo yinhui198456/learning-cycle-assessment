@@ -103,6 +103,27 @@ docker compose -f compose.yaml -f compose.https.yaml up --build -d
 - 使用 HTTPS 覆盖重建并启动容器
 - 日志：`output/deploy-loop.log`
 
+## 首次登录与管理后台
+
+生产环境没有默认管理员账号，首次部署后必须手动创建超级用户：
+
+```bash
+docker compose -f compose.yaml -f compose.https.yaml exec web \
+    python manage.py createsuperuser
+```
+
+创建完成后通过以下地址登录：
+
+- 普通用户登录：`https://<你的IP或域名>/accounts/login/`
+- Django 管理后台：`https://<你的IP或域名>/admin/`
+
+登录后，在 Django 后台 `/admin/accounts/user/` 和 `/admin/auth/group/` 中：
+
+- 将用户加入 `member`、`buddy`、`leader` 组来分配角色
+- 在 `Mentorship` 中建立 `member -> buddy` 关系
+
+角色组会在数据库迁移时自动创建，无需手动新建。
+
 ## 数据库与静态文件
 
 - `web` 服务启动时会自动执行 `collectstatic` 和 `migrate`。
