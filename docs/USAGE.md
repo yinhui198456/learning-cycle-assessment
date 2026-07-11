@@ -35,8 +35,12 @@ docker compose -f compose.yaml -f compose.https.yaml exec web \
 
 然后访问登录页：
 
-- 普通用户登录：`https://<你的IP或域名>/accounts/login/`
-- Django 后台：`https://<你的IP或域名>/admin/`
+- 普通用户登录：
+  - 内网：`https://<你的IP或域名>/accounts/login/`
+  - 外网：`https://<你的IP或域名>:8443/accounts/login/`
+- Django 后台：
+  - 内网：`https://<你的IP或域名>/admin/`
+  - 外网：`https://<你的IP或域名>:8443/admin/`
 
 登录后，超级用户可在 Django 后台 `/admin/auth/group/` 和 `/admin/accounts/user/` 中：
 
