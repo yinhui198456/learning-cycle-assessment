@@ -64,6 +64,13 @@ docker compose down -v
 
 See `docs/DEPLOYMENT.md` for details.
 
+## Documentation
+
+- [使用手册](docs/USAGE.md)
+- [部署手册](docs/DEPLOYMENT.md)
+- [架构与方案](docs/ARCHITECTURE.md)
+- [验收记录](docs/ACCEPTANCE.md)
+
 ## Current limitations
 
-Remote deployment, custom domain, and HTTPS setup are not included. Enable them only after separate confirmation.
+Public HTTPS with a trusted certificate requires a custom domain and DNS configuration. The current production setup uses a self-signed certificate and exposes HTTPS via Docker Compose; replace the certificate in `/opt/team_learn_plan_ssl/` when a domain is available.
